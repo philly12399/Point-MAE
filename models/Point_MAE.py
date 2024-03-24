@@ -261,8 +261,7 @@ class MaskTransformer(nn.Module):
             # G 3
             points = points.unsqueeze(0)  # 1 G 3
             index = random.randint(0, points.size(1) - 1)
-            distance_matrix = torch.norm(points[:, index].reshape(1, 1, 3) - points, p=2,
-                                         dim=-1)  # 1 1 3 - 1 G 3 -> 1 G
+            distance_matrix = torch.norm(points[:, index].reshape(1, 1, 3) - points, p=2, dim=-1)  # 1 1 3 - 1 G 3 -> 1 G
 
             idx = torch.argsort(distance_matrix, dim=-1, descending=False)[0]  # G
             ratio = self.mask_ratio
@@ -397,7 +396,6 @@ class Point_MAE(nn.Module):
 
         B, M, C = x_rec.shape
         rebuild_points = self.increase_dim(x_rec.transpose(1, 2)).transpose(1, 2).reshape(B * M, -1, 3)  # B M 1024
-
         gt_points = neighborhood[mask].reshape(B*M,-1,3)
         loss1 = self.loss_func(rebuild_points, gt_points)
 

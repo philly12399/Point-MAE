@@ -12,6 +12,8 @@ class IO:
             return cls._read_npy(file_path)
         # elif file_extension in ['.pcd']:
         #     return cls._read_pcd(file_path)
+        elif file_extension in ['.bin']:
+            return cls._read_bin(file_path)
         elif file_extension in ['.h5']:
             return cls._read_h5(file_path)
         elif file_extension in ['.txt']:
@@ -40,3 +42,6 @@ class IO:
     def _read_h5(cls, file_path):
         f = h5py.File(file_path, 'r')
         return f['data'][()]
+    @classmethod
+    def _read_bin(cls, file_path):
+        return np.fromfile(file_path, dtype=np.float32).reshape(-1,4)[:,:3]
