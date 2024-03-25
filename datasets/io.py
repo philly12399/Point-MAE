@@ -2,7 +2,7 @@ import h5py
 import numpy as np
 # import open3d
 import os
-
+import pickle
 class IO:
     @classmethod
     def get(cls, file_path):
@@ -18,6 +18,8 @@ class IO:
             return cls._read_h5(file_path)
         elif file_extension in ['.txt']:
             return cls._read_txt(file_path)
+        elif file_extension in ['.pkl']:
+            return cls._read_pkl(file_path)
         else:
             raise Exception('Unsupported file extension: %s' % file_extension)
 
@@ -45,3 +47,9 @@ class IO:
     @classmethod
     def _read_bin(cls, file_path):
         return np.fromfile(file_path, dtype=np.float32).reshape(-1,4)[:,:3]
+    
+    @classmethod
+    def _read_pkl(cls, file_path):
+        with open(file_path, 'rb') as file:
+            return pickle.load(file)
+        

@@ -72,10 +72,10 @@ class Wayside(data.Dataset):
 
     def reflect_augmentation(self, pcd, box):
         y=box['roty']
-        R=np.array([[math.cos(y),math.sin(y),0],[-math.sin(y),math.cos(y),0],[0,0,1]])
+        R=np.array([[math.cos(y),-math.sin(y),0],[math.sin(y),math.cos(y),0],[0,0,1]])
         # R = o3d.geometry.OrientedBoundingBox.get_rotation_matrix_from_xyz((0, 0,box['roty'])) 
         # R_inv = o3d.geometry.OrientedBoundingBox.get_rotation_matrix_from_xyz((0, 0,-box['roty']))
-        R_inv=np.array([[math.cos(-y),math.sin(-y),0],[-math.sin(-y),math.cos(-y),0],[0,0,1]])
+        R_inv=np.array([[math.cos(-y),-math.sin(-y),0],[math.sin(-y),math.cos(-y),0],[0,0,1]])
         # 旋轉到和xy對齊
         pcd = np.dot(R_inv, pcd.T).T        
         # 對長軸鏡射，使pcd左右方都有
