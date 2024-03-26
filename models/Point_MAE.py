@@ -303,9 +303,11 @@ class MaskTransformer(nn.Module):
         # generate mask
         if self.mask_type == 'rand':
             bool_masked_pos = self._mask_center_rand(center, noaug = noaug) # B G
-        else:
+        elif self.mask_type == 'block':
             bool_masked_pos = self._mask_center_block(center, noaug = noaug)
-
+        else:
+            #add my mask here
+            raise NotImplementedError   
         group_input_tokens = self.encoder(neighborhood)  #  B G C
 
         batch_size, seq_len, C = group_input_tokens.size()
@@ -377,12 +379,12 @@ class Point_MAE(nn.Module):
             # self.loss_func = emd().cuda()
 
 
-    def forward(self, pts, vis = False, **kwargs):
+    def forward(self, pts, masked_center, vis = False, **kwargs):
         neighborhood, center = self.group_divider(pts)
 
         x_vis, mask = self.MAE_encoder(neighborhood, center)
         B,_,C = x_vis.shape # B VIS C
-
+        
         pos_emd_vis = self.decoder_pos_embed(center[~mask]).reshape(B, -1, C)
 
         pos_emd_mask = self.decoder_pos_embed(center[mask]).reshape(B, -1, C)
@@ -410,7 +412,7 @@ class Point_MAE(nn.Module):
             ret2 = full_vis.reshape(-1, 3).unsqueeze(0)
             ret1 = full.reshape(-1, 3).unsqueeze(0)
             # return ret1, ret2
-            return ret1, ret2, full_center
+            return ret1, ret2, full_center,center[mask]
         else:
             return loss1
 

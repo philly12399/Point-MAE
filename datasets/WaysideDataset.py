@@ -15,6 +15,7 @@ class Wayside(data.Dataset):
         self.subset = config.subset
         self.npoints = config.N_POINTS
         
+        self.voxel_size = config.VOXEL_SIZE
         self.data_list_file = os.path.join(self.data_root, f'{self.subset}.txt')
         test_data_list_file = os.path.join(self.data_root, 'test.txt')
         
@@ -63,31 +64,81 @@ class Wayside(data.Dataset):
     def __getitem__(self, idx):
         sample = self.file_list[idx]
         info = self.data_info[idx]
-        data = IO.get(os.path.join(self.pc_path, sample['file_path'])).astype(np.float32)
-        data = self.reflect_augmentation(data, info['obj']['box3d'])
-        # data = self.random_sample(data, self.sample_points_num)
+        bbox = info['obj']['box3d']
+        data = IO.get(os.path.join(self.pc_path, sample['file_path'])).astype(np.float32)        
+        data = reflect_augmentation(data, bbox)
+        empty_voxel = get_voxel(data, bbox, self.voxel_size)
+        empty_voxel = torch.from_numpy(empty_voxel).float()
         data = self.pc_norm(data)
         data = torch.from_numpy(data).float()
-        return sample['taxonomy_id'], sample['model_id'], data, info 
-
-    def reflect_augmentation(self, pcd, box):
-        y=box['roty']
-        R=np.array([[math.cos(y),-math.sin(y),0],[math.sin(y),math.cos(y),0],[0,0,1]])
-        # R = o3d.geometry.OrientedBoundingBox.get_rotation_matrix_from_xyz((0, 0,box['roty'])) 
-        # R_inv = o3d.geometry.OrientedBoundingBox.get_rotation_matrix_from_xyz((0, 0,-box['roty']))
-        R_inv=np.array([[math.cos(-y),-math.sin(-y),0],[math.sin(-y),math.cos(-y),0],[0,0,1]])
-        # 旋轉到和xy對齊
-        pcd = np.dot(R_inv, pcd.T).T        
-        # 對長軸鏡射，使pcd左右方都有
-        if(box['l'] > box['w']):
-            Reflect = np.array([[1,0,0],[0,-1,0],[0,0, 1]])
-        else :
-            Reflect = np.array([[-1,0,0],[0,1,0],[0,0, 1]])
-        pcdR = np.dot(Reflect, pcd.T).T
-        pcd = np.concatenate((pcd, pcdR), axis=0)
-        # 轉回來
-        pcd = np.dot(R, pcd.T).T
-        return pcd
+        return sample['taxonomy_id'], sample['model_id'], data, empty_voxel
     
     def __len__(self):
         return len(self.file_list)
+    
+def reflect_augmentation( pcd, box):
+    R = rotz(box['roty']) 
+    R_inv =  rotz(-box['roty']) 
+    # 旋轉到和xy對齊
+    pcd = np.dot(R_inv, pcd.T).T        
+    # 對長軸鏡射，使pcd左右方都有
+    if(box['l'] > box['w']):
+        Reflect = np.array([[1,0,0],[0,-1,0],[0,0, 1]])
+    else :
+        Reflect = np.array([[-1,0,0],[0,1,0],[0,0, 1]])
+    pcdR = np.dot(Reflect, pcd.T).T
+    pcd = np.concatenate((pcd, pcdR), axis=0)
+    # 轉回來
+    pcd = np.dot(R, pcd.T).T
+    return pcd
+    
+def get_voxel(pcd, box, voxel_size = 0.3):
+    R = rotz(box['roty']) 
+    R_inv =  rotz(-box['roty']) 
+    # 旋轉到和xy對齊        
+    pcd = np.dot(R_inv, pcd.T).T
+    # voxelize
+    voxel, empty_voxel = voxelize(pcd, box, voxel_size)
+    # 轉回來
+    pcd = np.dot(R, pcd.T).T
+    empty_voxel = np.dot(R, empty_voxel.T).T
+    return empty_voxel
+    
+def voxelize(pcd, box, voxel_size=0.3):
+    l, w, h = box['l'], box['w'], box['h']
+    ln,wn,hn = int(l/voxel_size),int(w/voxel_size),int(h/voxel_size)
+    ln,wn,hn = math.ceil(l/voxel_size),math.ceil(w/voxel_size),math.ceil(h/voxel_size)
+    
+    voxel = []    
+    for i in range(0, ln):
+        for j in range(0, wn):
+            for k in range(0, hn):
+                voxel.append({
+                    'x': i * voxel_size - l/2 + voxel_size/2 ,
+                    'y': j * voxel_size - w/2 + voxel_size/2 ,
+                    'z': k * voxel_size - h/2 + voxel_size/2 ,
+                    'l': voxel_size,
+                    'w': voxel_size,
+                    'h': voxel_size,
+                    'cnt':0
+                })
+    for p in pcd:
+        i,j,k = int((p[0]+l/2)/voxel_size), int((p[1]+w/2)/voxel_size), int((p[2]+h/2)/voxel_size)
+        idx = i*wn*hn+j*hn+k
+        voxel[idx]['cnt']+=1
+        
+    empty=[]
+    for v in voxel:
+        if(v['cnt'] == 0):
+            empty.append([v['x'], v['y'],v['z']])
+    empty = np.array(empty) 
+    return voxel,empty
+    
+def rotz(t):
+    """Rotation about the z-axis."""
+    c = np.cos(t)
+    s = np.sin(t)
+    return np.array([[c, -s,  0],
+                     [s,  c,  0],
+                     [0,  0,  1]])
+    

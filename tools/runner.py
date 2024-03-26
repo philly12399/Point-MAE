@@ -54,7 +54,7 @@ def test(base_model, test_dataloader, args, config, logger = None):
         "02924116", #bus
     ]
     with torch.no_grad():
-        for idx, (taxonomy_ids, model_ids, data) in enumerate(tqdm(test_dataloader)):
+        for idx, (taxonomy_ids, model_ids, data, empty_center) in enumerate(tqdm(test_dataloader)):
             # import pdb; pdb.set_trace()
             if  taxonomy_ids[0] not in useful_cate:
                 continue
@@ -64,13 +64,16 @@ def test(base_model, test_dataloader, args, config, logger = None):
             if dataset_name == 'ShapeNet':
                 points = data.cuda()
             elif dataset_name == 'Wayside':
-                points = data.cuda()
+                points = data.cuda()                                
+                empty_center = empty_center.cuda()
+                masked_center = misc.fps(empty_center, 38)
+
+
             else:
                 raise NotImplementedError(f'Train phase do not support {dataset_name}')
-
             # dense_points, vis_points = base_model(points, vis=True)
-            dense_points, vis_points, centers= base_model(points, vis=True)
-                        
+            dense_points, vis_points, centers, mask= base_model(points, masked_center,vis=True)
+                            
             final_image = []
             data_path = f'./vis/{taxonomy_ids[0]}_{idx}'
             if not os.path.exists(data_path):
@@ -100,6 +103,13 @@ def test(base_model, test_dataloader, args, config, logger = None):
             img_path = os.path.join(data_path, f'plot.jpg')
             cv2.imwrite(img_path, img)
 
+            empty_center = empty_center.squeeze().detach().cpu().numpy()
+            np.savetxt(os.path.join(data_path,'emptyc.txt'), empty_center, delimiter=';')
+            masked_center =  masked_center.squeeze().detach().cpu().numpy()
+            np.savetxt(os.path.join(data_path,'maskc.txt'),  masked_center, delimiter=';')
+            mask =  mask.squeeze().detach().cpu().numpy()
+            np.savetxt(os.path.join(data_path,'mask.txt'),  mask, delimiter=';')
+            
             if idx > 50:
                 break
 
