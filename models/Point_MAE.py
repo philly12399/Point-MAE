@@ -299,14 +299,22 @@ class MaskTransformer(nn.Module):
 
         return overall_mask.to(center.device) # B G
 
-    def forward(self, neighborhood, center, noaug = False):
+    def forward(self, neighborhood, center, masked_voxel_center, noaug = False):
         # generate mask
         if self.mask_type == 'rand':
             bool_masked_pos = self._mask_center_rand(center, noaug = noaug) # B G
         elif self.mask_type == 'block':
             bool_masked_pos = self._mask_center_block(center, noaug = noaug)
+        elif self.mask_type == 'voxel':
+            group_input_tokens = self.encoder(neighborhood)  #  B G C
+            batch_size, seq_len, C = group_input_tokens.size()
+            x_vis = group_input_tokens.reshape(batch_size, -1, C)
+            unmasked_center = center.reshape(batch_size, -1, 3)
+            pos = self.pos_embed(unmasked_center)
+            x_vis = self.blocks(x_vis, pos)
+            x_vis = self.norm(x_vis)
+            return x_vis, None
         else:
-            #add my mask here
             raise NotImplementedError   
         group_input_tokens = self.encoder(neighborhood)  #  B G C
 
@@ -319,6 +327,7 @@ class MaskTransformer(nn.Module):
         pos = self.pos_embed(masked_center)
 
         # transformer
+        
         x_vis = self.blocks(x_vis, pos)
         x_vis = self.norm(x_vis)
 
@@ -368,7 +377,7 @@ class Point_MAE(nn.Module):
         self.loss = config.loss
         # loss
         self.build_loss_func(self.loss)
-
+        
     def build_loss_func(self, loss_type):
         if loss_type == "cdl1":
             self.loss_func = ChamferDistanceL1().cuda()
@@ -379,15 +388,20 @@ class Point_MAE(nn.Module):
             # self.loss_func = emd().cuda()
 
 
-    def forward(self, pts, masked_center, vis = False, **kwargs):
+    def forward(self, pts, masked_voxel_center, vis = False, **kwargs):
         neighborhood, center = self.group_divider(pts)
 
-        x_vis, mask = self.MAE_encoder(neighborhood, center)
-        B,_,C = x_vis.shape # B VIS C
+        x_vis, mask = self.MAE_encoder(neighborhood, center, masked_voxel_center)
         
-        pos_emd_vis = self.decoder_pos_embed(center[~mask]).reshape(B, -1, C)
-
-        pos_emd_mask = self.decoder_pos_embed(center[mask]).reshape(B, -1, C)
+        B,_,C = x_vis.shape # B VIS C
+        if(self.MAE_encoder.mask_type == 'voxel'):
+            center = center.reshape(-1, 3)
+            masked_voxel_center = masked_voxel_center.reshape(-1, 3)
+            pos_emd_vis = self.decoder_pos_embed(center).reshape(B, -1, C)
+            pos_emd_mask = self.decoder_pos_embed(masked_voxel_center).reshape(B, -1, C)
+        else:
+            pos_emd_vis = self.decoder_pos_embed(center[~mask]).reshape(B, -1, C)
+            pos_emd_mask = self.decoder_pos_embed(center[mask]).reshape(B, -1, C)
 
         _,N,_ = pos_emd_mask.shape
         mask_token = self.mask_token.expand(B, N, -1)
@@ -398,10 +412,23 @@ class Point_MAE(nn.Module):
 
         B, M, C = x_rec.shape
         rebuild_points = self.increase_dim(x_rec.transpose(1, 2)).transpose(1, 2).reshape(B * M, -1, 3)  # B M 1024
-        gt_points = neighborhood[mask].reshape(B*M,-1,3)
-        loss1 = self.loss_func(rebuild_points, gt_points)
-
-        if vis: #visualization
+        if self.MAE_encoder.mask_type != 'voxel':
+            gt_points = neighborhood[mask].reshape(B*M,-1,3)
+            loss1 = self.loss_func(rebuild_points, gt_points)
+            
+        if vis and self.MAE_encoder.mask_type == 'voxel':
+            vis_points = neighborhood.reshape(B * (self.num_group), -1, 3)         
+            full_vis = vis_points + center.unsqueeze(1)
+            full_rebuild = rebuild_points + masked_voxel_center.unsqueeze(1)
+            full = torch.cat([full_vis, full_rebuild], dim=0)
+            # full_points = torch.cat([rebuild_points,vis_points], dim=0)
+            full_center = torch.cat([center, masked_voxel_center], dim=0)
+            # full = full_points + full_center.unsqueeze(1)
+            ret2 = full_vis.reshape(-1, 3).unsqueeze(0)
+            ret1 = full.reshape(-1, 3).unsqueeze(0)
+            # return ret1, ret2
+            return ret1, ret2, full_center, masked_voxel_center
+        elif vis: #visualization
             vis_points = neighborhood[~mask].reshape(B * (self.num_group - M), -1, 3)
             full_vis = vis_points + center[~mask].unsqueeze(1)
             full_rebuild = rebuild_points + center[mask].unsqueeze(1)

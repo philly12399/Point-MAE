@@ -27,7 +27,7 @@ model : {
   loss: cdl2,
   transformer_config: {
     mask_ratio: 0.6,
-    mask_type: 'rand',
+    mask_type: 'voxel',
     trans_dim: 384,
     encoder_dims: 384,
     depth: 12,
