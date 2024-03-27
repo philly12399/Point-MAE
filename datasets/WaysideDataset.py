@@ -67,9 +67,11 @@ class Wayside(data.Dataset):
         bbox = info['obj']['box3d']
         data = IO.get(os.path.join(self.pc_path, sample['file_path'])).astype(np.float32)        
         data = reflect_augmentation(data, bbox)
+        # data, centroid, m  = self.pc_norm(data)
+        
         empty_voxel = get_voxel(data, bbox, self.voxel_size)
         empty_voxel = torch.from_numpy(empty_voxel).float()
-        data = self.pc_norm(data)
+        
         data = torch.from_numpy(data).float()
         return sample['taxonomy_id'], sample['model_id'], data, empty_voxel
     
@@ -126,6 +128,7 @@ def voxelize(pcd, box, voxel_size=0.3):
         i,j,k = int((p[0]+l/2)/voxel_size), int((p[1]+w/2)/voxel_size), int((p[2]+h/2)/voxel_size)
         idx = i*wn*hn+j*hn+k
         voxel[idx]['cnt']+=1
+    
         
     empty=[]
     for v in voxel:

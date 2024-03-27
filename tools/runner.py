@@ -72,7 +72,7 @@ def test(base_model, test_dataloader, args, config, logger = None):
             else:
                 raise NotImplementedError(f'Train phase do not support {dataset_name}')
             # dense_points, vis_points = base_model(points, vis=True)
-            dense_points, vis_points, centers, mask= base_model(points, masked_center,vis=True)
+            dense_points, vis_points, centers, mask = base_model(points, masked_center,vis=True)
                             
             final_image = []
             data_path = f'./vis/{taxonomy_ids[0]}_{idx}'
@@ -110,7 +110,7 @@ def test(base_model, test_dataloader, args, config, logger = None):
             mask =  mask.squeeze().detach().cpu().numpy()
             np.savetxt(os.path.join(data_path,'mask.txt'),  mask, delimiter=';')
             
-            if idx > 50:
+            if idx > 10:
                 break
 
         return
