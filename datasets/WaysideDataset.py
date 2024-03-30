@@ -19,8 +19,10 @@ class Wayside(data.Dataset):
         self.data_list_file = os.path.join(self.data_root, f'{self.subset}.txt')
         test_data_list_file = os.path.join(self.data_root, 'test.txt')
         
-        self.data_info = IO.get(os.path.join(self.data_root, f'{self.subset}.pkl'))['0004']
-
+        try:
+            self.data_info = IO.get(os.path.join(self.data_root, f'{self.subset}.pkl'))['0004']
+        except:
+             self.data_info = None
         self.sample_points_num = config.npoints
         self.whole = config.get('whole')
         
@@ -63,15 +65,17 @@ class Wayside(data.Dataset):
         
     def __getitem__(self, idx):
         sample = self.file_list[idx]
-        info = self.data_info[idx]
-        bbox = info['obj']['box3d']
-        data = IO.get(os.path.join(self.pc_path, sample['file_path'])).astype(np.float32)        
-        data = reflect_augmentation(data, bbox)
+        if(self.data_info is not None):
+            info = self.data_info[idx]
+            bbox = info['obj']['box3d']
+            data = IO.get(os.path.join(self.pc_path, sample['file_path'])).astype(np.float32)        
+            data = reflect_augmentation(data, bbox)
+            empty_voxel = get_voxel(data, bbox, self.voxel_size)
+            empty_voxel = torch.from_numpy(empty_voxel).float()
         # data, centroid, m  = self.pc_norm(data)
-        
-        empty_voxel = get_voxel(data, bbox, self.voxel_size)
-        empty_voxel = torch.from_numpy(empty_voxel).float()
-        
+        else:
+            data = IO.get(os.path.join(self.pc_path, sample['file_path'])).astype(np.float32)        
+            empty_voxel = torch.from_numpy(np.array([0,0,0])).float()
         data = torch.from_numpy(data).float()
         return sample['taxonomy_id'], sample['model_id'], data, empty_voxel
     
@@ -124,16 +128,21 @@ def voxelize(pcd, box, voxel_size=0.3):
                     'h': voxel_size,
                     'cnt':0
                 })
+
+    pmax = pcd.max(0)-voxel_size/2
+    pmin = pcd.min(0)+voxel_size/2            
     for p in pcd:
         i,j,k = int((p[0]+l/2)/voxel_size), int((p[1]+w/2)/voxel_size), int((p[2]+h/2)/voxel_size)
         idx = i*wn*hn+j*hn+k
-        voxel[idx]['cnt']+=1
+        if(idx<len(voxel)):
+            voxel[idx]['cnt']+=1
     
         
     empty=[]
     for v in voxel:
-        if(v['cnt'] == 0):
-            empty.append([v['x'], v['y'],v['z']])
+        if(v['cnt'] == 0):  
+            if(in_range(np.array([v['x'],v['y'],v['z']]), pmax, pmin)):       
+                empty.append([v['x'], v['y'],v['z']])
     empty = np.array(empty) 
     return voxel,empty
     
@@ -144,4 +153,5 @@ def rotz(t):
     return np.array([[c, -s,  0],
                      [s,  c,  0],
                      [0,  0,  1]])
-    
+def in_range(v, pmax, pmin):
+    return (v<=pmax).all() and (v>=pmin).all()

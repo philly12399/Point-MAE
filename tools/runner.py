@@ -27,14 +27,15 @@ def test_net(args, config):
     if args.distributed:
         raise NotImplementedError()
 
-    test(base_model, test_dataloader, args, config, logger=logger)
+    test(base_model, test_dataloader, args, config.dataset.test._base_, logger=logger)
 
 
 # visualization
 def test(base_model, test_dataloader, args, config, logger = None):
-
     base_model.eval()  # set model to eval mode
-    target = './vis'
+    target = './vis'    
+    if "TARGET_PATH" in config:
+        target = config.TARGET_PATH
     # useful_cate = [
     #     "02691156", #plane
     #     "04379243",  #table
@@ -60,22 +61,23 @@ def test(base_model, test_dataloader, args, config, logger = None):
                 continue
             a, b = 0, 0
 
-            dataset_name = config.dataset.test._base_.NAME
+            dataset_name = config.NAME
             if dataset_name == 'ShapeNet':
                 points = data.cuda()
             elif dataset_name == 'Wayside':
-                points = data.cuda()                                
-                empty_center = empty_center.cuda()
-                masked_center = misc.fps(empty_center, 38)
-
-
+                points = data.cuda()    
+                masked_center= None     
+                if base_model.MAE_encoder.mask_type == 'voxel':                   
+                    empty_center = empty_center.cuda()
+                    masked_center = misc.fps(empty_center, 38)
+                
             else:
                 raise NotImplementedError(f'Train phase do not support {dataset_name}')
             # dense_points, vis_points = base_model(points, vis=True)
             dense_points, vis_points, centers, mask = base_model(points, masked_center,vis=True)
                             
             final_image = []
-            data_path = f'./vis/{taxonomy_ids[0]}_{idx}'
+            data_path = f'{target}/{taxonomy_ids[0]}_{idx}'
             if not os.path.exists(data_path):
                 os.makedirs(data_path)
 
@@ -102,15 +104,13 @@ def test(base_model, test_dataloader, args, config, logger = None):
             img = np.concatenate(final_image, axis=1)
             img_path = os.path.join(data_path, f'plot.jpg')
             cv2.imwrite(img_path, img)
-
-            empty_center = empty_center.squeeze().detach().cpu().numpy()
-            np.savetxt(os.path.join(data_path,'emptyc.txt'), empty_center, delimiter=';')
-            masked_center =  masked_center.squeeze().detach().cpu().numpy()
-            np.savetxt(os.path.join(data_path,'maskc.txt'),  masked_center, delimiter=';')
+            if(masked_center is not None):
+                masked_center =  masked_center.squeeze().detach().cpu().numpy()
+                np.savetxt(os.path.join(data_path,'voxelmask.txt'),  masked_center, delimiter=';')
             mask =  mask.squeeze().detach().cpu().numpy()
             np.savetxt(os.path.join(data_path,'mask.txt'),  mask, delimiter=';')
             
-            if idx > 10:
+            if idx > 20:
                 break
 
         return
