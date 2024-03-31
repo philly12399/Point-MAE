@@ -48,6 +48,7 @@ def main():
         config.dataset.train.others.bs = config.total_bs
         config.dataset.val.others.bs = 1
         config.dataset.test.others.bs = 1
+        
     # log 
     log_args_to_file(args, 'args', logger = logger)
     log_config_to_file(config, 'config', logger = logger)

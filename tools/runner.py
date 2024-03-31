@@ -15,7 +15,6 @@ def test_net(args, config):
     logger = get_logger(args.log_name)
     print_log('Tester start ... ', logger = logger)
     _, test_dataloader = builder.dataset_builder(args, config.dataset.test)
-
     base_model = builder.model_builder(config.model)
     # base_model.load_model_from_ckpt(args.ckpts)
     builder.load_model(base_model, args.ckpts, logger = logger)
@@ -33,9 +32,16 @@ def test_net(args, config):
 # visualization
 def test(base_model, test_dataloader, args, config, logger = None):
     base_model.eval()  # set model to eval mode
-    target = './vis'    
+    TARGET = './vis'  
+    VIS_NUM = -1  
+    START_INDEX=0
+    
     if "TARGET_PATH" in config:
-        target = config.TARGET_PATH
+        TARGET = config.TARGET_PATH
+    if "VIS_NUM" in config:
+        VIS_NUM = config.VIS_NUM
+    if "START_INDEX" in config:
+        START_INDEX = config.START_INDEX
     # useful_cate = [
     #     "02691156", #plane
     #     "04379243",  #table
@@ -54,9 +60,15 @@ def test(base_model, test_dataloader, args, config, logger = None):
         "03790512", #motorbike
         "02924116", #bus
     ]
+    iterator = iter(test_dataloader)
+    for _ in range(START_INDEX):
+        next(iterator)
     with torch.no_grad():
-        for idx, (taxonomy_ids, model_ids, data, empty_center) in enumerate(tqdm(test_dataloader)):
+        for idx, (taxonomy_ids, model_ids, data, empty_center) in enumerate(tqdm(iterator), start = START_INDEX):
             # import pdb; pdb.set_trace()
+            if  VIS_NUM > 0 and idx > VIS_NUM :
+                break
+
             if  taxonomy_ids[0] not in useful_cate:
                 continue
             a, b = 0, 0
@@ -77,7 +89,7 @@ def test(base_model, test_dataloader, args, config, logger = None):
             dense_points, vis_points, centers, mask = base_model(points, masked_center,vis=True)
                             
             final_image = []
-            data_path = f'{target}/{taxonomy_ids[0]}_{idx}'
+            data_path = f'{TARGET}/{taxonomy_ids[0]}_{idx}'
             if not os.path.exists(data_path):
                 os.makedirs(data_path)
 
@@ -109,8 +121,4 @@ def test(base_model, test_dataloader, args, config, logger = None):
                 np.savetxt(os.path.join(data_path,'voxelmask.txt'),  masked_center, delimiter=';')
             mask =  mask.squeeze().detach().cpu().numpy()
             np.savetxt(os.path.join(data_path,'mask.txt'),  mask, delimiter=';')
-            
-            if idx > 20:
-                break
-
         return
