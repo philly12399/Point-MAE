@@ -14,8 +14,8 @@ class Wayside(data.Dataset):
         self.pc_path = config.PC_PATH
         self.subset = config.subset
         self.npoints = config.N_POINTS
-        
-        self.voxel_size = config.VOXEL_SIZE
+        self.additional_cfg = config.additional_cfg
+
         self.data_list_file = os.path.join(self.data_root, f'{self.subset}.txt')
         test_data_list_file = os.path.join(self.data_root, 'test.txt')
         
@@ -67,10 +67,14 @@ class Wayside(data.Dataset):
         sample = self.file_list[idx]
         if(self.data_info is not None):
             info = self.data_info[idx]
-            bbox = info['obj']['box3d']
-            data = IO.get(os.path.join(self.pc_path, sample['file_path'])).astype(np.float32)        
-            data = reflect_augmentation(data, bbox)
-            # empty_voxel = get_voxel(data, bbox, self.voxel_size)
+            box = info['obj']['box3d']
+            data = IO.get(os.path.join(self.pc_path, sample['file_path'])).astype(np.float32)    
+            if(self.additional_cfg.REFLECT_AUG):   
+                data = reflect_augmentation(data, box)
+                if(self.additional_cfg.ALIGN_XY):
+                    R_inv = rotz(-box['roty']) 
+                    data = np.dot(R_inv, data.T).T 
+            # empty_voxel = get_voxel(data, bbox, self.additional_cfg.VOXEL_SIZE)
             # empty_voxel = torch.from_numpy(empty_voxel).float()
             empty_voxel = torch.from_numpy(np.array([0,0,0])).float()
             
@@ -97,7 +101,7 @@ def reflect_augmentation( pcd, box):
     pcdR = np.dot(Reflect, pcd.T).T
     pcd = np.concatenate((pcd, pcdR), axis=0)
     # 轉回來
-    # pcd = np.dot(R, pcd.T).T
+    pcd = np.dot(R, pcd.T).T
     return pcd
     
 def get_voxel(pcd, box, voxel_size = 0.3):

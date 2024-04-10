@@ -2,7 +2,3 @@ NAME: Wayside
 DATA_PATH: data/input/seq4_car_all/ShapeNet-55
 N_POINTS: 1024
 PC_PATH: data/input/seq4_car_all/shapenet_pc
-VOXEL_SIZE: 0.1
-TARGET_PATH: ./newoutput
-VIS_NUM: 300
-START_INDEX: 0
