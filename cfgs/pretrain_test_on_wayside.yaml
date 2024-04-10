@@ -23,7 +23,7 @@ dataset : {
 model : {
   NAME: Point_MAE,
   group_size: 32,
-  num_group: 64,
+  num_group: 128,
   loss: cdl2,
   transformer_config: {
     mask_ratio: 0.9,

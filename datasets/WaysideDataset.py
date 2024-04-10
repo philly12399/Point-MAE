@@ -70,8 +70,10 @@ class Wayside(data.Dataset):
             bbox = info['obj']['box3d']
             data = IO.get(os.path.join(self.pc_path, sample['file_path'])).astype(np.float32)        
             data = reflect_augmentation(data, bbox)
-            empty_voxel = get_voxel(data, bbox, self.voxel_size)
-            empty_voxel = torch.from_numpy(empty_voxel).float()
+            # empty_voxel = get_voxel(data, bbox, self.voxel_size)
+            # empty_voxel = torch.from_numpy(empty_voxel).float()
+            empty_voxel = torch.from_numpy(np.array([0,0,0])).float()
+            
         # data, centroid, m  = self.pc_norm(data)
         else:
             data = IO.get(os.path.join(self.pc_path, sample['file_path'])).astype(np.float32)        
@@ -95,7 +97,7 @@ def reflect_augmentation( pcd, box):
     pcdR = np.dot(Reflect, pcd.T).T
     pcd = np.concatenate((pcd, pcdR), axis=0)
     # 轉回來
-    pcd = np.dot(R, pcd.T).T
+    # pcd = np.dot(R, pcd.T).T
     return pcd
     
 def get_voxel(pcd, box, voxel_size = 0.3):

@@ -12,8 +12,7 @@ import os
 import sys
 import torch
 import unittest
-
-
+from scipy.spatial.distance import directed_hausdorff
 from torch.autograd import gradcheck
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
@@ -33,6 +32,13 @@ class ChamferDistanceTestCase(unittest.TestCase):
 if __name__ == '__main__':
     # unittest.main()
     import pdb
-    x = torch.rand(32,128,3)
-    y = torch.rand(32,128,3)
+    x = torch.rand(128,3)
+    y = torch.rand(128,3)
+    # print(directed_hausdorff(x,y),directed_hausdorff(y,x))
+    # x = torch.rand(32,128,3)
+    # y = torch.rand(32,128,3)
+
+    # dist1, dist2 = ChamferFunction.apply(x.cuda(), y.cuda())
+    # s=torch.mean(dist1) + torch.mean(dist2)
+    
     pdb.set_trace()
