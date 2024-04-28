@@ -31,7 +31,7 @@ def test_net(args, config):
     os.system(f'cp {args.config} {config.additional_cfg.TARGET_PATH}')
     for s in sorted(config.dataset.test._base_.SEQ):
         os.system(f"mkdir -p {config.additional_cfg.TARGET_PATH}/vis/{s}")
-        os.system(f"mkdir -p {config.additional_cfg.TARGET_PATH}/dense_db/{s}")
+        os.system(f"mkdir -p {config.additional_cfg.TARGET_PATH}/gt_database/{s}")
         
     logger = get_logger(args.log_name)
     print_log('Tester start ... ', logger = logger)
@@ -79,7 +79,7 @@ def test(base_model, test_dataloader, args, config, logger = None):
             else:
                 raise NotImplementedError(f'Train phase do not support {dataset_name}')
             # dense_points, vis_points = base_model(points, vis=True)
-            if(data.shape[0]>=MIN_POINTS):
+            if(data.shape[1]>=MIN_POINTS):
                 dense_points, vis_points, centers, mask = base_model(points, masked_center,vis=True)
             else :
                 dense_points = points
@@ -104,7 +104,7 @@ def test(base_model, test_dataloader, args, config, logger = None):
             img_path = os.path.join(out_path_vis, f'plot.jpg')
             cv2.imwrite(img_path, img)
             
-            out_path_dense = os.path.join(f"{config.additional_cfg.TARGET_PATH}/dense_db/")
+            out_path_dense = os.path.join(f"{config.additional_cfg.TARGET_PATH}/gt_database/")
             save_points_to_bin(dense_points,out_path_dense+info_out[0]+".bin")            
         return
     
