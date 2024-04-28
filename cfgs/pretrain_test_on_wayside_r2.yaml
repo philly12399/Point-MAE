@@ -17,7 +17,7 @@ dataset : {
             others: {subset: 'train', npoints: 1024}},
   val : { _base_: cfgs/dataset_configs/ShapeNet-55.yaml,
             others: {subset: 'test', npoints: 1024}},
-  test : { _base_: cfgs/dataset_configs/Wayside.yaml,
+  test : { _base_: cfgs/dataset_configs/Wayside-occ0-car_r2.yaml,
             others: {subset: 'test', npoints: 1024}}}
 
 model : {
@@ -42,12 +42,3 @@ npoints: 1024
 total_bs : 128
 step_per_update : 1
 max_epoch : 300
-
-additional_cfg : {
-  VOXEL_SIZE: 0.1,
-  TARGET_PATH: './vis',
-  VIS_NUM: -1,
-  START_INDEX: 0,
-  REFLECT_AUG: True,
-  ALIGN_XY: True,
-}

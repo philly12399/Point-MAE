@@ -3,7 +3,7 @@
 data/
 best/
 /.idea/
-
+experiments/
 dist/
 build/
 *.egg-info/

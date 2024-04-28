@@ -1,0 +1,5 @@
+NAME: Wayside
+DATA_PATH: data/vis_input/rand_0.9_occ2/ShapeNet-55
+N_POINTS: 1024
+PC_PATH: data/vis_input/rand_0.9_occ2/shapenet_pc
+

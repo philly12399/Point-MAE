@@ -7,44 +7,48 @@ from .build import DATASETS
 from utils.logger import *
 import open3d as o3d
 import math
-import pickle
 @DATASETS.register_module()
 class Wayside(data.Dataset):
     def __init__(self, config):
-        self.info_path = config.INFO_PATH
-        self.pcd_root = config.PCD_PATH
-        self.seq = sorted(config.SEQ)
+        self.data_root = config.DATA_PATH
+        self.pc_path = config.PC_PATH
         self.subset = config.subset
         self.npoints = config.N_POINTS
         self.additional_cfg = config.additional_cfg
-        self.data_info = {}
-        tmp_data_info = IO.get(self.info_path)
-        for s in self.seq:
-            assert s in tmp_data_info
-            self.data_info[s] = tmp_data_info[s]  
 
+        self.data_list_file = os.path.join(self.data_root, f'{self.subset}.txt')
+        test_data_list_file = os.path.join(self.data_root, 'test.txt')
+        
+        try:
+            self.data_info = IO.get(os.path.join(self.data_root, f'{self.subset}.pkl'))['0004']
+        except:
+             self.data_info = None
+        self.sample_points_num = config.npoints
+        self.whole = config.get('whole')
+        
+        print_log(f'[DATASET] sample out {self.sample_points_num} points', logger = 'ShapeNet-55')
+        print_log(f'[DATASET] Open file {self.data_list_file}', logger = 'ShapeNet-55')
+        with open(self.data_list_file, 'r') as f:
+            lines = f.readlines()
+
+        if self.whole:
+            with open(test_data_list_file, 'r') as f:
+                test_lines = f.readlines()
+            print_log(f'[DATASET] Open file {test_data_list_file}', logger = 'ShapeNet-55')
+            lines = test_lines + lines
         self.file_list = []
-        self.data_info_list = []
-        for s in self.seq:
-            for info in self.data_info[s]:
-                ## additional pointmae info 
-                info['seq'] = s
-                outpath = f'{info["seq"]}/{info["velodyne_idx"]}_{info["obj_det_idx"]}_{info["obj"]["obj_type"]}'
-                info['mae_vis_path'] = outpath
-                info['mae_dense_path'] = outpath+".bin"
-                info['valid'] = info['num_points_in_gt']>=self.additional_cfg.MIN_POINTS
-                self.data_info_list.append(info)
-                self.file_list.append(os.path.join(self.pcd_root, s,info['path']))
-                
-        ##output info
-        with open(os.path.join(config.additional_cfg.TARGET_PATH, "info.pkl"), 'wb') as file:
-            pickle.dump(self.data_info, file)
-        
-        
-        
+        for line in lines:
+            line = line.strip()
+            taxonomy_id = line.split('-')[0]
+            model_id = line.split('-')[1].split('.')[0]
+            self.file_list.append({
+                'taxonomy_id': taxonomy_id,
+                'model_id': model_id,
+                'file_path': line
+            })
         print_log(f'[DATASET] {len(self.file_list)} instances were loaded', logger = 'ShapeNet-55')
+
         self.permutation = np.arange(self.npoints)
-        
     def pc_norm(self, pc):
         """ pc: NxC, return NxC """
         centroid = np.mean(pc, axis=0)
@@ -60,27 +64,31 @@ class Wayside(data.Dataset):
         return pc
         
     def __getitem__(self, idx):
-
-        info = self.data_info_list[idx]
-        box = info['obj']['box3d']
-        data = IO.get(self.file_list[idx]).astype(np.float32)    
-        if(self.additional_cfg.REFLECT_AUG):   
-            data = reflect_augmentation(data, box)
-            if(self.additional_cfg.ALIGN_XY):
-                R_inv = rotz(-box['roty']) 
-                data = np.dot(R_inv, data.T).T 
-        # empty_voxel = get_voxel(data, bbox, self.additional_cfg.VOXEL_SIZE)
-        # empty_voxel = torch.from_numpy(empty_voxel).float()
-        empty_voxel = torch.from_numpy(np.array([0,0,0])).float()
+        sample = self.file_list[idx]
+        if(self.data_info is not None):
+            info = self.data_info[idx]
+            box = info['obj']['box3d']
+            data = IO.get(os.path.join(self.pc_path, sample['file_path'])).astype(np.float32)    
+            if(self.additional_cfg.REFLECT_AUG):   
+                data = reflect_augmentation(data, box)
+                if(self.additional_cfg.ALIGN_XY):
+                    R_inv = rotz(-box['roty']) 
+                    data = np.dot(R_inv, data.T).T 
+            # empty_voxel = get_voxel(data, bbox, self.additional_cfg.VOXEL_SIZE)
+            # empty_voxel = torch.from_numpy(empty_voxel).float()
+            empty_voxel = torch.from_numpy(np.array([0,0,0])).float()
+            
         # data, centroid, m  = self.pc_norm(data)
+        else:
+            data = IO.get(os.path.join(self.pc_path, sample['file_path'])).astype(np.float32)        
+            empty_voxel = torch.from_numpy(np.array([0,0,0])).float()
         data = torch.from_numpy(data).float()
-        outpath= info['mae_vis_path']
-        return data, outpath, empty_voxel, 
+        return sample['taxonomy_id'], sample['model_id'], data, empty_voxel
     
     def __len__(self):
         return len(self.file_list)
     
-def reflect_augmentation(pcd, box):
+def reflect_augmentation( pcd, box):
     R = rotz(box['roty']) 
     R_inv =  rotz(-box['roty']) 
     # 旋轉到和xy對齊

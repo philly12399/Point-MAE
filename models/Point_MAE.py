@@ -63,6 +63,7 @@ class Group(nn.Module):  # FPS + KNN
         '''
         batch_size, num_points, _ = xyz.shape
         # fps the centers out
+        
         center = misc.fps(xyz, self.num_group) # B G 3
         # knn to get the neighborhood
         _, idx = self.knn(xyz, center) # B G M

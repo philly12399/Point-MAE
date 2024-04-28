@@ -9,9 +9,23 @@ from utils.logger import *
 from tqdm import tqdm
 import cv2
 import numpy as np
-
+import yaml
+from easydict import EasyDict
 
 def test_net(args, config):
+
+    
+    if("additional_cfg" not in config):
+        config.additional_cfg = EasyDict({
+                'TARGET_PATH': './vis',
+                'VIS_NUM': 10,
+                'START_INDEX': 0,
+                'REFLECT_AUG': True,
+                'ALIGN_XY': True,
+            })
+    os.system(f"mkdir -p {config.additional_cfg.TARGET_PATH}")
+    os.system(f'cp {args.config} {config.additional_cfg.TARGET_PATH}')
+    config.dataset.test._base_.additional_cfg = config.additional_cfg
     logger = get_logger(args.log_name)
     print_log('Tester start ... ', logger = logger)
     _, test_dataloader = builder.dataset_builder(args, config.dataset.test)
@@ -21,27 +35,19 @@ def test_net(args, config):
 
     if args.use_gpu:
         base_model.to(args.local_rank)
-
+    
     #  DDP
     if args.distributed:
         raise NotImplementedError()
-
-    test(base_model, test_dataloader, args, config.dataset.test._base_, logger=logger)
+    #config setting and copy
+        
+    test(base_model, test_dataloader, args, config, logger=logger)
 
 
 # visualization
 def test(base_model, test_dataloader, args, config, logger = None):
     base_model.eval()  # set model to eval mode
-    TARGET = './vis'  
-    VIS_NUM = -1  
-    START_INDEX=0
     
-    if "TARGET_PATH" in config:
-        TARGET = config.TARGET_PATH
-    if "VIS_NUM" in config:
-        VIS_NUM = config.VIS_NUM
-    if "START_INDEX" in config:
-        START_INDEX = config.START_INDEX
     # useful_cate = [
     #     "02691156", #plane
     #     "04379243",  #table
@@ -61,19 +67,19 @@ def test(base_model, test_dataloader, args, config, logger = None):
         "02924116", #bus
     ]
     iterator = iter(test_dataloader)
-    for _ in range(START_INDEX):
+    for _ in range(config.additional_cfg.START_INDEX):
         next(iterator)
     with torch.no_grad():
-        for idx, (taxonomy_ids, model_ids, data, empty_center) in enumerate(tqdm(iterator), start = START_INDEX):
+        for idx, (taxonomy_ids, model_ids, data, empty_center) in enumerate(tqdm(iterator), start = config.additional_cfg.START_INDEX):
             # import pdb; pdb.set_trace()
-            if  VIS_NUM > 0 and idx > VIS_NUM :
+            if  config.additional_cfg.VIS_NUM > 0 and idx > config.additional_cfg.VIS_NUM :
                 break
 
             if  taxonomy_ids[0] not in useful_cate:
                 continue
             a, b = 0, 0
 
-            dataset_name = config.NAME
+            dataset_name = config.dataset.test._base_.NAME
             if dataset_name == 'ShapeNet':
                 points = data.cuda()
             elif dataset_name == 'Wayside':
@@ -89,7 +95,7 @@ def test(base_model, test_dataloader, args, config, logger = None):
             dense_points, vis_points, centers, mask = base_model(points, masked_center,vis=True)
                             
             final_image = []
-            data_path = f'{TARGET}/{taxonomy_ids[0]}_{idx}'
+            data_path = f'{config.additional_cfg.TARGET_PATH}/vis/{taxonomy_ids[0]}_{idx}'
             if not os.path.exists(data_path):
                 os.makedirs(data_path)
 

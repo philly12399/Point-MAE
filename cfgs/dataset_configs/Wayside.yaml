@@ -1,0 +1,5 @@
+NAME: Wayside
+N_POINTS: 1024
+PCD_PATH: data/gt_db/ab3dmot/mark_detection_to_ab3dmot/gt_database
+INFO_PATH: data/gt_db/ab3dmot/mark_detection_to_ab3dmot/info.pkl
+SEQ: ['0004'] 
