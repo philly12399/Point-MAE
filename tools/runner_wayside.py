@@ -69,13 +69,12 @@ def test(base_model, test_dataloader, args, config, logger = None):
             dataset_name = config.dataset.test._base_.NAME
             if dataset_name == 'ShapeNet':
                 points = data.cuda()
-            elif dataset_name == 'Wayside':
+            elif dataset_name == 'Wayside' or dataset_name[:5].lower() == 'kitti':
                 points = data.cuda()    
                 masked_center= None     
                 if base_model.MAE_encoder.mask_type == 'voxel':                   
                     empty_center = empty_center.cuda()
                     masked_center = misc.fps(empty_center, 38)
-                
             else:
                 raise NotImplementedError(f'Train phase do not support {dataset_name}')
             # dense_points, vis_points = base_model(points, vis=True)
