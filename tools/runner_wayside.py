@@ -44,22 +44,17 @@ def test_net(args, config):
     base_model = builder.model_builder(config.model)
     builder.load_model(base_model, args.ckpts, logger = logger)
     if args.use_gpu:
-        base_model.to(args.local_rank)            
+        base_model.to(args.local_rank)      
     test(base_model, test_dataloader, args, config, logger=logger)
-
 
 # visualization
 def test(base_model, test_dataloader, args, config, logger = None):
     base_model.eval()  # set model to eval mode
     MIN_POINTS = config.model.group_size
-    useful_cate = [
-        "02958343", #car
-        "03790512", #motorbike
-        "02924116", #bus
-    ]
     iterator = iter(test_dataloader)
     for _ in range(config.additional_cfg.START_INDEX):
         next(iterator)
+    logger = os.path.join(config.additional_cfg.TARGET_PATH,'log.txt')
     with torch.no_grad():
         for idx, (data, info_out, empty_center) in enumerate(tqdm(iterator), start = config.additional_cfg.START_INDEX):
             # import pdb; pdb.set_trace()
@@ -104,18 +99,21 @@ def test(base_model, test_dataloader, args, config, logger = None):
             cv2.imwrite(img_path, img)
             
             out_path_dense = os.path.join(f"{config.additional_cfg.TARGET_PATH}/gt_database/")
-            save_points_to_bin(dense_points,out_path_dense+info_out[0]+".bin")            
+            save_points_to_bin(dense_points,out_path_dense+info_out[0]+".bin") 
+            
+            with open(logger, 'a') as f:
+                f.write(f'{idx} {info_out[0]}\n')    
         return
     
 def save_points_and_img(points, path, a, b, img=None):
-    points = points.squeeze().detach().cpu().numpy()
+    points = points.squeeze(axis=0).detach().cpu().numpy()    
     np.savetxt(path, points, delimiter=';')
     if(img is not None):
         points = misc.get_ptcloud_img(points,a,b)        
         img.append(points[150:650,150:675,:])
 
 def save_points_to_bin(points, path):
-    points = points.squeeze().detach().cpu().numpy()
+    points = points.squeeze(axis=0).detach().cpu().numpy()
     zeros_column = np.zeros((points.shape[0], 1))
     points = np.concatenate((points, zeros_column), axis=1).astype(np.float32)
     points.tofile(path)

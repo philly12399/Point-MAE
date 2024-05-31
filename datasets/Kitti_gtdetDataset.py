@@ -8,6 +8,7 @@ from utils.logger import *
 import open3d as o3d
 import math
 import pickle
+from datetime import datetime
 @DATASETS.register_module()
 class Kitti_gtdet(data.Dataset):
     def __init__(self, config):
@@ -37,28 +38,19 @@ class Kitti_gtdet(data.Dataset):
                 self.file_list.append(os.path.join(self.pcd_root, s,info['path']))
                 
         ##output info
-        with open(os.path.join(config.additional_cfg.TARGET_PATH, "info.pkl"), 'wb') as file:
+        info_output = os.path.join(config.additional_cfg.TARGET_PATH, "info.pkl")
+        if  os.path.exists(info_output):
+            now = datetime.now()
+            nowd = now.strftime("-%m-%d-%H-%M")
+            info_output = os.path.join(config.additional_cfg.TARGET_PATH, f"info{nowd}.pkl")
+            print(f'info.pkl exist, write info to info{nowd}.pkl')
+                        
+        with open(info_output, 'wb') as file:
             pickle.dump(self.data_info, file)
-        
-        
         
         print_log(f'[DATASET] {len(self.file_list)} instances were loaded', logger = 'ShapeNet-55')
         self.permutation = np.arange(self.npoints)
-        
-    def pc_norm(self, pc):
-        """ pc: NxC, return NxC """
-        centroid = np.mean(pc, axis=0)
-        pc = pc - centroid
-        m = np.max(np.sqrt(np.sum(pc**2, axis=1)))
-        pc = pc / m
-        return pc
-        
 
-    def random_sample(self, pc, num):
-        np.random.shuffle(self.permutation)
-        pc = pc[self.permutation[:num]]
-        return pc
-        
     def __getitem__(self, idx):
 
         info = self.data_info_list[idx]
@@ -73,8 +65,10 @@ class Kitti_gtdet(data.Dataset):
         # empty_voxel = torch.from_numpy(empty_voxel).float()
         empty_voxel = torch.from_numpy(np.array([0,0,0])).float()
         # data, centroid, m  = self.pc_norm(data)
+        if(len(data) == 0):
+            data = np.array([[0,0,0]])            
         data = torch.from_numpy(data).float()
-        outpath= info['mae_vis_path']
+        outpath = info['mae_vis_path']
         return data, outpath, empty_voxel, 
     
     def __len__(self):
