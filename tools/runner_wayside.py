@@ -23,6 +23,9 @@ def test_net(args, config):
                 'REFLECT_AUG': True,
                 'ALIGN_XY': True,
             })
+    if("save_vis_txt" not in config):
+        config.save_vis_txt=True
+        
     config.additional_cfg.MIN_POINTS = config.model.group_size
     config.dataset.test._base_.additional_cfg = config.additional_cfg
     
@@ -30,7 +33,8 @@ def test_net(args, config):
     os.system(f"mkdir -p {config.additional_cfg.TARGET_PATH}")
     os.system(f'cp {args.config} {config.additional_cfg.TARGET_PATH}')
     for s in sorted(config.dataset.test._base_.SEQ):
-        os.system(f"mkdir -p {config.additional_cfg.TARGET_PATH}/vis/{s}")
+        if(config.save_vis_txt):
+            os.system(f"mkdir -p {config.additional_cfg.TARGET_PATH}/vis/{s}")
         os.system(f"mkdir -p {config.additional_cfg.TARGET_PATH}/gt_database/{s}")
         
     logger = get_logger(args.log_name)
@@ -58,7 +62,7 @@ def test(base_model, test_dataloader, args, config, logger = None):
     with torch.no_grad():
         for idx, (data, info_out, empty_center) in enumerate(tqdm(iterator), start = config.additional_cfg.START_INDEX):
             # import pdb; pdb.set_trace()
-            if  config.additional_cfg.VIS_NUM > 0 and idx > config.additional_cfg.VIS_NUM :
+            if  config.additional_cfg.VIS_NUM > 0 and idx - config.additional_cfg.START_INDEX > config.additional_cfg.VIS_NUM :
                 break
             a, b = 0, 0
             dataset_name = config.dataset.test._base_.NAME
@@ -82,21 +86,23 @@ def test(base_model, test_dataloader, args, config, logger = None):
                 mask = points
                          
             final_image = []
-            out_path_vis = os.path.join(f"{config.additional_cfg.TARGET_PATH}/vis/",info_out[0])
-            if not os.path.exists(out_path_vis):
-                os.makedirs(out_path_vis)            
+                   
 
-            save_points_and_img(points, os.path.join(out_path_vis, 'gt.txt'), a, b, final_image)
-            save_points_and_img(vis_points, os.path.join(out_path_vis, 'vis.txt'), a, b, final_image)
-            save_points_and_img(dense_points, os.path.join(out_path_vis, 'dense_points.txt'), a, b, final_image)
-            save_points_and_img(centers, os.path.join(out_path_vis, 'center.txt'), a, b, final_image)                        
-            if(masked_center is not None):
-                save_points_and_img(masked_center, os.path.join(out_path_vis, 'voxelmask.txt'), a, b)
-            save_points_and_img(mask, os.path.join(out_path_vis, 'vmask.txt'), a, b)
+            if(config.save_vis_txt):
+                out_path_vis = os.path.join(f"{config.additional_cfg.TARGET_PATH}/vis/",info_out[0])
+                if not os.path.exists(out_path_vis):
+                    os.makedirs(out_path_vis)     
+                save_points_and_img(points, os.path.join(out_path_vis, 'gt.txt'), a, b, final_image)
+                save_points_and_img(vis_points, os.path.join(out_path_vis, 'vis.txt'), a, b, final_image)
+                save_points_and_img(dense_points, os.path.join(out_path_vis, 'dense_points.txt'), a, b, final_image)
+                save_points_and_img(centers, os.path.join(out_path_vis, 'center.txt'), a, b, final_image)                        
+                if(masked_center is not None):
+                    save_points_and_img(masked_center, os.path.join(out_path_vis, 'voxelmask.txt'), a, b)
+                save_points_and_img(mask, os.path.join(out_path_vis, 'vmask.txt'), a, b)
             
-            img = np.concatenate(final_image, axis=1)
-            img_path = os.path.join(out_path_vis, f'plot.jpg')
-            cv2.imwrite(img_path, img)
+                img = np.concatenate(final_image, axis=1)
+                img_path = os.path.join(out_path_vis, f'plot.jpg')
+                cv2.imwrite(img_path, img)
             
             out_path_dense = os.path.join(f"{config.additional_cfg.TARGET_PATH}/gt_database/")
             save_points_to_bin(dense_points,out_path_dense+info_out[0]+".bin") 
