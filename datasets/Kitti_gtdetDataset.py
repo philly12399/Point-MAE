@@ -9,6 +9,7 @@ import open3d as o3d
 import math
 import pickle
 from datetime import datetime
+import pdb
 @DATASETS.register_module()
 class Kitti_gtdet(data.Dataset):
     def __init__(self, config):
@@ -26,6 +27,7 @@ class Kitti_gtdet(data.Dataset):
 
         self.file_list = []
         self.data_info_list = []
+        valid_cnt=0
         for s in self.seq:
             for info in self.data_info[s]:
                 ## additional pointmae info 
@@ -33,7 +35,9 @@ class Kitti_gtdet(data.Dataset):
                 outpath = f'{info["seq"]}/{info["velodyne_idx"]}_{info["obj_det_idx"]}_{info["obj"]["obj_type"]}'
                 info['mae_vis_path'] = outpath
                 info['mae_dense_path'] = outpath+".bin"
-                info['valid'] = info['num_points_in_gt']>=self.additional_cfg.MIN_POINTS
+                info['valid'] = (info['num_points_in_gt']*2>=self.additional_cfg.MIN_POINTS) and (info['obj']['score']>=self.additional_cfg.CONF_THRES)
+                if(info['valid']):
+                    valid_cnt+=1
                 self.data_info_list.append(info)
                 self.file_list.append(os.path.join(self.pcd_root, s,info['path']))
                 
@@ -48,7 +52,8 @@ class Kitti_gtdet(data.Dataset):
         with open(info_output, 'wb') as file:
             pickle.dump(self.data_info, file)
         
-        print_log(f'[DATASET] {len(self.file_list)} instances were loaded', logger = 'ShapeNet-55')
+        print_log(f'[DATASET] {len(self.file_list)} instances were loaded, {valid_cnt} valid', logger = 'ShapeNet-55')
+        
         self.permutation = np.arange(self.npoints)
 
     def __getitem__(self, idx):
@@ -69,7 +74,8 @@ class Kitti_gtdet(data.Dataset):
             data = np.array([[0,0,0]])            
         data = torch.from_numpy(data).float()
         outpath = info['mae_vis_path']
-        return data, outpath, empty_voxel, 
+        valid = info['valid']
+        return data, outpath, empty_voxel, valid
     
     def __len__(self):
         return len(self.file_list)

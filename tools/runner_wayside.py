@@ -22,6 +22,7 @@ def test_net(args, config):
                 'START_INDEX': 0,
                 'REFLECT_AUG': True,
                 'ALIGN_XY': True,
+                'CONF_THRES':0.0,
             })
     if("save_vis_txt" not in config):
         config.save_vis_txt=True
@@ -60,7 +61,7 @@ def test(base_model, test_dataloader, args, config, logger = None):
         next(iterator)
     logger = os.path.join(config.additional_cfg.TARGET_PATH,'log.txt')
     with torch.no_grad():
-        for idx, (data, info_out, empty_center) in enumerate(tqdm(iterator), start = config.additional_cfg.START_INDEX):
+        for idx, (data, info_out, empty_center, valid) in enumerate(tqdm(iterator), start = config.additional_cfg.START_INDEX):
             # import pdb; pdb.set_trace()
             if  config.additional_cfg.VIS_NUM > 0 and idx - config.additional_cfg.START_INDEX > config.additional_cfg.VIS_NUM :
                 break
@@ -76,39 +77,31 @@ def test(base_model, test_dataloader, args, config, logger = None):
                     masked_center = misc.fps(empty_center, 38)
             else:
                 raise NotImplementedError(f'Train phase do not support {dataset_name}')
-            # dense_points, vis_points = base_model(points, vis=True)
-            if(data.shape[1]>=MIN_POINTS):
-                dense_points, vis_points, centers, mask = base_model(points, masked_center,vis=True)
-            else :
-                dense_points = points
-                vis_points = points
-                centers = points
-                mask = points
-                         
+            # dense_points, vis_points = base_model(points, vis=True)                        
             final_image = []
-                   
-
-            if(config.save_vis_txt):
-                out_path_vis = os.path.join(f"{config.additional_cfg.TARGET_PATH}/vis/",info_out[0])
-                if not os.path.exists(out_path_vis):
-                    os.makedirs(out_path_vis)     
-                save_points_and_img(points, os.path.join(out_path_vis, 'gt.txt'), a, b, final_image)
-                save_points_and_img(vis_points, os.path.join(out_path_vis, 'vis.txt'), a, b, final_image)
-                save_points_and_img(dense_points, os.path.join(out_path_vis, 'dense_points.txt'), a, b, final_image)
-                save_points_and_img(centers, os.path.join(out_path_vis, 'center.txt'), a, b, final_image)                        
-                if(masked_center is not None):
-                    save_points_and_img(masked_center, os.path.join(out_path_vis, 'voxelmask.txt'), a, b)
-                save_points_and_img(mask, os.path.join(out_path_vis, 'vmask.txt'), a, b)
+            if(valid[0]==True):
+                dense_points, vis_points, centers, mask = base_model(points, masked_center,vis=True)
+                if(config.save_vis_txt):
+                    out_path_vis = os.path.join(f"{config.additional_cfg.TARGET_PATH}/vis/",info_out[0])
+                    if not os.path.exists(out_path_vis):
+                        os.makedirs(out_path_vis)     
+                    save_points_and_img(points, os.path.join(out_path_vis, 'gt.txt'), a, b, final_image)
+                    save_points_and_img(vis_points, os.path.join(out_path_vis, 'vis.txt'), a, b, final_image)
+                    save_points_and_img(dense_points, os.path.join(out_path_vis, 'dense_points.txt'), a, b, final_image)
+                    save_points_and_img(centers, os.path.join(out_path_vis, 'center.txt'), a, b, final_image)                        
+                    if(masked_center is not None):
+                        save_points_and_img(masked_center, os.path.join(out_path_vis, 'voxelmask.txt'), a, b)
+                    save_points_and_img(mask, os.path.join(out_path_vis, 'vmask.txt'), a, b)
+                
+                    img = np.concatenate(final_image, axis=1)
+                    img_path = os.path.join(out_path_vis, f'plot.jpg')
+                    cv2.imwrite(img_path, img)
+                
+                out_path_dense = os.path.join(f"{config.additional_cfg.TARGET_PATH}/gt_database/")
+                save_points_to_bin(dense_points,out_path_dense+info_out[0]+".bin") 
             
-                img = np.concatenate(final_image, axis=1)
-                img_path = os.path.join(out_path_vis, f'plot.jpg')
-                cv2.imwrite(img_path, img)
-            
-            out_path_dense = os.path.join(f"{config.additional_cfg.TARGET_PATH}/gt_database/")
-            save_points_to_bin(dense_points,out_path_dense+info_out[0]+".bin") 
-            
-            with open(logger, 'a') as f:
-                f.write(f'{idx} {info_out[0]}\n')    
+                with open(logger, 'a') as f:
+                    f.write(f'{idx} {info_out[0]}\n')    
         return
     
 def save_points_and_img(points, path, a, b, img=None):
