@@ -1,4 +1,0 @@
-NAME: Wayside
-DATA_PATH: data/input/seq4_car_mark_all/ShapeNet-55
-N_POINTS: 1024
-PC_PATH: data/input/seq4_car_mark_all/shapenet_pc

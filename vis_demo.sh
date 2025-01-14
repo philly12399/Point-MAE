@@ -1,0 +1,1 @@
+python main_vis_aot.py --test --ckpts models/pretrain.pth --config cfgs/pretrain_demo.yaml --exp_name demo  --num_workers 32

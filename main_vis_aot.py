@@ -1,5 +1,5 @@
 # from tools import run_net
-from tools import test_net, test_net_wayside
+from tools import test_net, test_net_aot
 from utils import parser, dist_utils, misc
 from utils.logger import *
 from utils.config import *
@@ -39,7 +39,7 @@ def main():
         misc.set_random_seed(args.seed + args.local_rank, deterministic=args.deterministic) # seed + rank, for augmentation
 
     # run
-    test_net_wayside(args, config)
+    test_net_aot(args, config)
 
 
 
