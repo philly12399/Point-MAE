@@ -11,7 +11,7 @@ import pickle
 from datetime import datetime
 import pdb
 @DATASETS.register_module()
-class Kitti_gtdet(data.Dataset):
+class AOT(data.Dataset):
     def __init__(self, config):
         self.info_path = config.INFO_PATH
         self.pcd_root = config.PCD_PATH

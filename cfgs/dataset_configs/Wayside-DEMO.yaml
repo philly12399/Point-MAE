@@ -1,4 +1,4 @@
-NAME: Kitti_gtdet
+NAME: AOT
 N_POINTS: 1024
 PCD_PATH: data/gt_db/demos/demo_gtdets_wayside/gt_database
 INFO_PATH: data/gt_db/demos/demo_gtdets_wayside/info.pkl
