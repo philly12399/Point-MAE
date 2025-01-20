@@ -43,7 +43,7 @@ max_epoch : 300
 save_vis_txt: False
 additional_cfg : {
   VOXEL_SIZE: 0.1,
-  TARGET_PATH: './data/exp',
+  TARGET_PATH: './data/dense_db/demo',
   VIS_NUM: -1, 
   START_INDEX: 0,
   REFLECT_AUG: True,

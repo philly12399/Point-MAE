@@ -1,7 +1,7 @@
 NAME: AOT
 N_POINTS: 1024
-PCD_PATH: data/gt_db/demos/demo_gtdets_wayside/gt_database
-INFO_PATH: data/gt_db/demos/demo_gtdets_wayside/info.pkl
+PCD_PATH: data/gt_db/demo/gt_database
+INFO_PATH: data/gt_db/demo/info.pkl
 SEQ: ['0021']
 # ['0001', '0002', '0005', '0007', '0008', '0009', '0011', '0018', '0019', '0020']
 # ['0001', '0006', '0008', '0010', '0012', '0013', '0014', '0015', '0016', '0018', '0019', '0021']
